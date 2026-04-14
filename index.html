@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Quantum Frontiers — World Quantum Day 2026</title>
+
+  <meta property="og:title" content="Quantum Frontiers — Interactive Quantum Computing Explorer">
+  <meta property="og:description" content="A hands-on introduction to quantum computing for developers. Interactive 3D Bloch sphere, quantum gates, and algorithm visualizations.">
+  <meta property="og:type" content="website">
+  <meta name="description" content="Interactive quantum computing explorer with Bloch sphere, quantum gates, and algorithm visualizations. Built for World Quantum Day 2026.">
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x269B;</text></svg>">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.171.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.171.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --cyan: #00ffcc;
+      --blue: #4488ff;
+      --purple: #aa44ff;
+      --dark: #0a0a1a;
+      --glass: rgba(10, 10, 30, 0.75);
+      --glass-border: rgba(100, 140, 255, 0.2);
+      --text: #e0e0f0;
+      --text-dim: rgba(200, 210, 255, 0.55);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh; width: 100vw;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #three-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+    #three-canvas canvas { display: block; }
+
+    /* Loading */
+    #loading {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--dark);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: opacity 1s ease;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    .loader { width: 50px; height: 50px; border: 3px solid rgba(0,255,204,0.2); border-top-color: var(--cyan); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text { margin-top: 1rem; color: var(--cyan); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; }
+
+    /* Top bar */
+    #top-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.5rem; pointer-events: none; }
+    #top-bar > * { pointer-events: auto; }
+    .brand { font-size: 0.95rem; font-weight: 700; background: linear-gradient(135deg, var(--cyan), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .badge { padding: 0.25rem 0.7rem; border: 1px solid rgba(0,255,204,0.3); border-radius: 100px; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cyan); backdrop-filter: blur(10px); background: rgba(0,255,204,0.05); }
+
+    /* Nav tabs */
+    #nav-tabs {
+      position: fixed; bottom: 0.8rem; left: 1rem; right: 1rem;
+      z-index: 10;
+      display: flex; gap: 0.15rem;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 0.25rem;
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      overflow-x: auto;
+      scrollbar-width: none;
+      justify-content: center;
+    }
+    #nav-tabs::-webkit-scrollbar { display: none; }
+    .nav-tab {
+      padding: 0.4rem 0.7rem;
+      border-radius: 10px; border: none;
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 0.68rem; font-weight: 600;
+      cursor: pointer; transition: all 0.3s ease;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .nav-tab:hover { color: rgba(200,210,255,0.8); }
+    .nav-tab.active { background: rgba(0,255,204,0.12); color: var(--cyan); }
+    .nav-tab.separator { color: rgba(100,140,255,0.3); cursor: default; padding: 0.4rem 0.2rem; font-size: 0.6rem; }
+    .nav-tab.separator:hover { color: rgba(100,140,255,0.3); }
+
+    /* Panels */
+    .panel {
+      position: fixed; z-index: 5;
+      transition: opacity 0.35s ease, visibility 0s 0.35s;
+      pointer-events: none; opacity: 0; visibility: hidden;
+    }
+    .panel.active {
+      pointer-events: auto; opacity: 1; visibility: visible;
+      transition: opacity 0.35s ease, visibility 0s 0s;
+    }
+    .glass-panel {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 1.2rem 1.5rem;
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* Content panel (scrollable text panels) */
+    .content-panel {
+      overflow-y: auto;
+      max-height: calc(100vh - 6rem);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0,255,204,0.2) transparent;
+    }
+    .content-panel::-webkit-scrollbar { width: 4px; }
+    .content-panel::-webkit-scrollbar-thumb { background: rgba(0,255,204,0.2); border-radius: 2px; }
+
+    /* Panel positions */
+    .panel-right { top: 3.5rem; right: 1.5rem; width: 380px; }
+    .panel-left { top: 3.5rem; left: 1.5rem; width: 380px; }
+    .panel-bottom { bottom: 4rem; left: 50%; transform: translateX(-50%); width: 92%; max-width: 620px; }
+    .panel-center { top: 50%; left: 50%; transform: translate(-50%, -50%); width: 92%; max-width: 650px; text-align: center; }
+
+    /* Section styling */
+    .edu-section { margin-bottom: 1rem; }
+    .edu-section:last-child { margin-bottom: 0; }
+    .edu-section h3 { font-size: 0.85rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.3rem; }
+    .edu-section p { font-size: 0.8rem; line-height: 1.6; color: var(--text-dim); }
+    .edu-section strong { color: var(--text); }
+    .edu-highlight { color: var(--cyan); font-weight: 600; }
+    .edu-note { font-size: 0.75rem; color: rgba(200,210,255,0.4); font-style: italic; margin-top: 0.3rem; }
+
+    /* Step nav (prev/next) */
+    .step-nav { display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid rgba(100,140,255,0.1); }
+    .step-btn {
+      font-size: 0.72rem; color: var(--text-dim); background: none; border: 1px solid var(--glass-border);
+      padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+    }
+    .step-btn:hover { color: var(--cyan); border-color: rgba(0,255,204,0.3); }
+
+    /* Hero */
+    #panel-hero { top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 92%; max-width: 650px; }
+    .hero-title {
+      font-size: clamp(2.8rem, 8vw, 5.5rem); font-weight: 800;
+      background: linear-gradient(135deg, var(--cyan), var(--blue), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      line-height: 1.05; margin-bottom: 0.8rem;
+    }
+    .hero-subtitle { font-size: clamp(0.9rem, 2vw, 1.1rem); color: var(--text-dim); line-height: 1.6; max-width: 500px; margin: 0 auto; }
+
+    /* Gate playground */
+    .gate-row { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; }
+    .gate-btn {
+      width: 48px; height: 48px; border-radius: 12px;
+      border: 1px solid var(--glass-border); background: var(--glass);
+      color: var(--text); font-size: 1.1rem; font-weight: 700;
+      font-family: 'Courier New', monospace;
+      cursor: pointer; transition: all 0.2s;
+      backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .gate-btn:hover { border-color: var(--cyan); box-shadow: 0 0 20px rgba(0,255,204,0.3); transform: translateY(-2px); }
+    .gate-btn:active { transform: translateY(0); }
+    .gate-btn[data-gate="H"] { color: #ffd700; border-color: rgba(255,215,0,0.3); }
+    .gate-btn[data-gate="X"] { color: #ff4444; border-color: rgba(255,68,68,0.3); }
+    .gate-btn[data-gate="Y"] { color: #44ff44; border-color: rgba(68,255,68,0.3); }
+    .gate-btn[data-gate="Z"] { color: #4488ff; border-color: rgba(68,136,255,0.3); }
+    .gate-btn[data-gate="S"] { color: #aa44ff; border-color: rgba(170,68,255,0.3); }
+    .gate-btn[data-gate="T"] { color: #44ffdd; border-color: rgba(68,255,221,0.3); }
+    .gate-btn[data-gate="RESET"] { width: auto; padding: 0 0.8rem; font-size: 0.7rem; font-family: system-ui, sans-serif; color: var(--text-dim); }
+
+    #gate-info { font-size: 0.78rem; color: var(--text-dim); line-height: 1.5; margin-top: 0.6rem; min-height: 2.5em; }
+    #gate-challenges { margin-top: 0.6rem; }
+    .challenge { font-size: 0.75rem; color: rgba(200,210,255,0.5); margin-bottom: 0.3rem; }
+    .challenge-answer { display: none; font-size: 0.72rem; color: rgba(0,255,204,0.6); margin: 0.2rem 0 0.4rem 0.5rem; }
+    .challenge-answer.show { display: block; }
+    .challenge-toggle { font-size: 0.68rem; color: var(--cyan); cursor: pointer; background: none; border: none; margin-left: 0.3rem; }
+
+    /* State display */
+    #state-panel { position: fixed; top: 4rem; left: 1.5rem; z-index: 5; opacity: 0; transition: opacity 0.4s ease; pointer-events: none; }
+    #state-panel.active { opacity: 1; }
+    #state-notation { font-family: 'Courier New', monospace; font-size: 0.95rem; color: var(--cyan); margin-bottom: 0.6rem; }
+    .prob-container { display: flex; flex-direction: column; gap: 0.3rem; width: 180px; }
+    .prob-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; }
+    .prob-label { font-family: 'Courier New', monospace; width: 2rem; color: rgba(200,210,255,0.5); }
+    .prob-track { flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+    .prob-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+    .prob-fill-0 { background: linear-gradient(90deg, var(--blue), var(--cyan)); width: 100%; }
+    .prob-fill-1 { background: linear-gradient(90deg, var(--purple), #ff44aa); width: 0%; }
+    .prob-pct { width: 2rem; text-align: right; font-family: 'Courier New', monospace; font-size: 0.7rem; color: rgba(200,210,255,0.35); }
+
+    /* Demo controls (shared across race/shors/optimization/qkd) */
+    .demo-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: center; }
+    .demo-select { padding: 0.4rem 0.7rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--glass); color: var(--text); font-size: 0.8rem; backdrop-filter: blur(10px); cursor: pointer; }
+    .demo-select option { background: #1a1a2e; }
+    .demo-stats { display: flex; gap: 1.2rem; font-size: 0.75rem; font-family: 'Courier New', monospace; justify-content: center; margin-top: 0.6rem; }
+    .demo-stats .classical { color: #ff8844; }
+    .demo-stats .quantum { color: #44aaff; }
+    .demo-result { font-size: 0.9rem; font-weight: 600; color: #ffd700; opacity: 0; transition: opacity 0.5s; text-align: center; margin-top: 0.5rem; }
+    .demo-explainer { font-size: 0.75rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 0.8rem; text-align: left; }
+    .demo-explainer strong { color: var(--text); }
+    .demo-narration { font-size: 0.72rem; color: rgba(0,255,204,0.6); text-align: center; min-height: 1.2em; margin-top: 0.4rem; transition: opacity 0.3s; }
+    .demo-usecase { font-size: 0.72rem; color: var(--purple); margin-top: 0.3rem; }
+
+    .btn-primary { padding: 0.4rem 1rem; border-radius: 10px; border: 1px solid var(--cyan); background: rgba(0,255,204,0.1); color: var(--cyan); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary:hover { background: rgba(0,255,204,0.2); box-shadow: 0 0 20px rgba(0,255,204,0.3); }
+    .btn-secondary { padding: 0.4rem 1rem; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--glass); color: var(--text-dim); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+    .btn-secondary:hover { border-color: rgba(200,210,255,0.3); }
+
+    /* Circuit diagrams */
+    .circuit { display: flex; align-items: center; gap: 0; margin: 0.5rem 0; padding: 0.4rem 0; }
+    .circuit-wire { height: 2px; background: rgba(68,136,255,0.4); flex: 1; min-width: 20px; }
+    .circuit-gate { padding: 0.2rem 0.5rem; border: 1px solid rgba(68,136,255,0.5); border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.8rem; font-weight: 700; color: var(--blue); background: rgba(68,136,255,0.08); }
+    .circuit-label { font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--text-dim); padding: 0 0.3rem; white-space: nowrap; }
+    .circuit-measure { padding: 0.15rem 0.4rem; border: 1px solid rgba(170,68,255,0.5); border-radius: 4px; font-size: 0.7rem; color: var(--purple); background: rgba(170,68,255,0.08); }
+    .circuit-desc { font-size: 0.72rem; color: var(--text-dim); margin: 0 0 0.5rem 0; }
+    .circuit-cnot { display: flex; flex-direction: column; align-items: center; gap: 0; position: relative; }
+    .circuit-cnot-line { width: 2px; height: 20px; background: rgba(68,136,255,0.5); }
+    .circuit-cnot-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+    .circuit-cnot-target { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--blue); position: relative; }
+    .circuit-cnot-target::before, .circuit-cnot-target::after { content: ''; position: absolute; background: var(--blue); }
+    .circuit-cnot-target::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
+    .circuit-cnot-target::after { width: 100%; height: 2px; top: 50%; transform: translateY(-50%); }
+
+    /* Links */
+    .edu-links { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; }
+    .edu-links a { font-size: 0.75rem; color: var(--cyan); text-decoration: none; border: 1px solid rgba(0,255,204,0.2); padding: 0.3rem 0.7rem; border-radius: 8px; transition: all 0.2s; }
+    .edu-links a:hover { background: rgba(0,255,204,0.1); }
+
+    /* AR */
+    #ar-button { position: fixed; top: 0.8rem; right: 1.5rem; z-index: 10; padding: 0.4rem 0.8rem; border-radius: 10px; border: 1px solid var(--cyan); background: rgba(0,255,204,0.08); color: var(--cyan); font-size: 0.75rem; font-weight: 600; cursor: pointer; display: none; align-items: center; gap: 0.3rem; backdrop-filter: blur(20px); transition: all 0.2s; }
+    #ar-button:hover { background: rgba(0,255,204,0.18); }
+    #ar-overlay { display: none; position: fixed; inset: 0; z-index: 50; flex-direction: column; align-items: center; justify-content: flex-end; padding: 2rem; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .panel-right, .panel-left { top: auto; right: 0.5rem; left: 0.5rem; bottom: 4rem; width: auto; max-height: 50vh; }
+      .gate-btn { width: 42px; height: 42px; font-size: 0.95rem; }
+      .nav-tab { padding: 0.35rem 0.5rem; font-size: 0.6rem; }
+      #state-panel { top: 3.5rem; left: 0.5rem; }
+      .hero-title { font-size: clamp(2.2rem, 10vw, 3.5rem); }
+      .panel-bottom { width: 96%; bottom: 3.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loading"><div class="loader"></div><div class="loader-text">Initializing quantum state...</div></div>
+  <div id="three-canvas"></div>
+
+  <div id="top-bar">
+    <span class="brand">Quantum Frontiers</span>
+    <span class="badge">World Quantum Day &middot; April 14, 2026</span>
+  </div>
+
+  <!-- ====== 1. HERO ====== -->
+  <div id="panel-hero" class="panel active">
+    <h1 class="hero-title">Quantum<br>Frontiers</h1>
+    <p class="hero-subtitle">A hands-on introduction to quantum computing for developers. Follow the tabs to go from classical bits to quantum algorithms &mdash; with interactive demos.</p>
+  </div>
+
+  <!-- ====== 2. BITS vs QUBITS ====== -->
+  <div id="panel-bridge" class="panel panel-right">
+    <div class="glass-panel content-panel">
+      <div class="edu-section">
+        <h3>You Already Know This</h3>
+        <p>A classical bit is <strong>0</strong> or <strong>1</strong>. A NOT gate flips it. AND, OR, and XOR combine pairs of bits. From these primitives, you build everything &mdash; processors, operating systems, the internet.</p>
+      </div>
+      <div class="edu-section">
+        <h3>What Changes</h3>
+        <p>A <strong>qubit</strong> can be 0, 1, or a <strong>superposition</strong> of both simultaneously. This isn't "maybe 0 or maybe 1 and we don't know." The qubit genuinely exists in both states at once, weighted by complex numbers called <em>amplitudes</em>.</p>
+        <p style="margin-top:0.4rem;">Think of a coin: a classical bit is heads or tails on the table. A qubit is a coin spinning in the air &mdash; it has some probability of landing each way, but while spinning, it's in a state that is neither purely heads nor tails.</p>
+        <p class="edu-note">The coin analogy breaks down because quantum amplitudes can be negative and complex, enabling interference. That's where the real power comes from.</p>
+      </div>
+      <div class="edu-section">
+        <h3>The Three Big Ideas</h3>
+        <p><span class="edu-highlight">Superposition:</span> A qubit processes multiple possibilities at once. N qubits can represent 2&#x207F; states simultaneously.</p>
+        <p style="margin-top:0.3rem;"><span class="edu-highlight">Entanglement:</span> Correlations between qubits that have no classical equivalent. Measuring one instantly determines the other, no matter the distance.</p>
+        <p style="margin-top:0.3rem;"><span class="edu-highlight">Interference:</span> Amplitudes can cancel (destructive) or reinforce (constructive). Quantum algorithms use this to amplify right answers and suppress wrong ones.</p>
+      </div>
+      <div class="step-nav">
+        <button class="step-btn" data-target="hero">&larr; Welcome</button>
+        <button class="step-btn" data-target="qubit-intro">The Qubit &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 3. THE QUBIT ====== -->
+  <div id="panel-qubit-intro" class="panel panel-left">
+    <div class="glass-panel content-panel">
+      <div class="edu-section">
+        <h3>Reading the Bloch Sphere</h3>
+        <p>The sphere on screen is a map of <strong>every possible state</strong> of a single qubit.</p>
+        <p style="margin-top:0.3rem;"><strong>North pole</strong> = |0&#10217; (definitely 0, like a classical bit set to 0)</p>
+        <p><strong>South pole</strong> = |1&#10217; (definitely 1)</p>
+        <p><strong>Equator</strong> = equal superposition &mdash; 50/50 between 0 and 1</p>
+        <p><strong>Everywhere else</strong> = unequal superposition. Closer to a pole means more likely to measure that value.</p>
+      </div>
+      <div class="edu-section">
+        <h3>What's Phase?</h3>
+        <p>Phase is the angle around the equator. It doesn't affect the probability of measuring 0 vs 1, but it determines how the qubit <strong>interferes</strong> with other qubits &mdash; like two waves being in sync or out of sync.</p>
+      </div>
+      <div class="edu-section">
+        <h3>Try It</h3>
+        <p>Click below to apply a Hadamard gate and watch the state arrow move from |0&#10217; to the equator.</p>
+        <button class="btn-primary" id="try-h-btn" style="margin-top:0.4rem;">Apply H Gate &rarr;</button>
+      </div>
+      <div class="step-nav">
+        <button class="step-btn" data-target="bridge">&larr; Bits vs Qubits</button>
+        <button class="step-btn" data-target="playground">Gates &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== STATE DISPLAY ====== -->
+  <div id="state-panel" class="glass-panel">
+    <div id="state-notation">|&#968;&#10217; = |0&#10217;</div>
+    <div class="prob-container">
+      <div class="prob-row">
+        <span class="prob-label">|0&#10217;</span>
+        <div class="prob-track"><div id="prob-bar-0" class="prob-fill prob-fill-0"></div></div>
+        <span id="prob-pct-0" class="prob-pct">100%</span>
+      </div>
+      <div class="prob-row">
+        <span class="prob-label">|1&#10217;</span>
+        <div class="prob-track"><div id="prob-bar-1" class="prob-fill prob-fill-1"></div></div>
+        <span id="prob-pct-1" class="prob-pct">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 4. GATES ====== -->
+  <div id="panel-playground" class="panel panel-bottom">
+    <div class="glass-panel">
+      <div class="gate-row">
+        <button class="gate-btn" data-gate="H" title="Hadamard">H</button>
+        <button class="gate-btn" data-gate="X" title="Pauli-X">X</button>
+        <button class="gate-btn" data-gate="Y" title="Pauli-Y">Y</button>
+        <button class="gate-btn" data-gate="Z" title="Pauli-Z">Z</button>
+        <button class="gate-btn" data-gate="S" title="S-Gate">S</button>
+        <button class="gate-btn" data-gate="T" title="T-Gate">T</button>
+        <button class="gate-btn" data-gate="RESET" title="Reset">Reset</button>
+      </div>
+      <div id="gate-info">Click a gate above to see what it does.</div>
+      <div id="gate-challenges">
+        <div class="challenge">
+          Try: Apply <strong>H</strong> twice. Why does it return to |0&#10217;?
+          <button class="challenge-toggle" onclick="this.nextElementSibling.classList.toggle('show')">answer</button>
+          <div class="challenge-answer">H creates superposition, and H undoes it. Applying H twice is the identity &mdash; it's its own inverse. Mathematically: H&times;H = I.</div>
+        </div>
+        <div class="challenge">
+          Try: <strong>H &rarr; Z &rarr; H</strong>. This equals X! Why?
+          <button class="challenge-toggle" onclick="this.nextElementSibling.classList.toggle('show')">answer</button>
+          <div class="challenge-answer">H transforms between the Z-basis and X-basis. "Sandwiching" Z between two H gates converts a phase flip into a bit flip. This is called <em>change of basis</em>.</div>
+        </div>
+        <div class="challenge">
+          Try: <strong>H</strong> then <strong>X</strong>. Where does the arrow point?
+          <button class="challenge-toggle" onclick="this.nextElementSibling.classList.toggle('show')">answer</button>
+          <div class="challenge-answer">It points to |&#8722;&#10217; (the negative X-axis). H creates |+&#10217;, then X flips it to |&#8722;&#10217;. The probabilities are still 50/50, but the phase changed.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 5. CIRCUITS ====== -->
+  <div id="panel-circuits" class="panel panel-right">
+    <div class="glass-panel content-panel">
+      <div class="edu-section">
+        <h3>From Gates to Circuits</h3>
+        <p>In classical computing, you chain logic gates into circuits. Quantum computing works the same way: gates are applied in sequence, reading left to right.</p>
+      </div>
+      <div class="edu-section">
+        <h3>Simple Circuits</h3>
+        <p class="circuit-desc">Create superposition, then measure:</p>
+        <div class="circuit">
+          <span class="circuit-label">|0&#10217;</span>
+          <div class="circuit-wire"></div>
+          <span class="circuit-gate">H</span>
+          <div class="circuit-wire"></div>
+          <span class="circuit-measure">Measure</span>
+        </div>
+        <p class="circuit-desc" style="color:rgba(0,255,204,0.5);">Result: 50% chance of 0, 50% chance of 1.</p>
+
+        <p class="circuit-desc" style="margin-top:0.6rem;">Sandwich Z between H gates (change of basis):</p>
+        <div class="circuit">
+          <span class="circuit-label">|0&#10217;</span>
+          <div class="circuit-wire"></div>
+          <span class="circuit-gate">H</span>
+          <div class="circuit-wire"></div>
+          <span class="circuit-gate">Z</span>
+          <div class="circuit-wire"></div>
+          <span class="circuit-gate">H</span>
+          <div class="circuit-wire"></div>
+          <span class="circuit-measure">Measure</span>
+        </div>
+        <p class="circuit-desc" style="color:rgba(0,255,204,0.5);">Equivalent to X (NOT). Always outputs 1.</p>
+      </div>
+      <div class="edu-section">
+        <h3>What Makes a Quantum Algorithm</h3>
+        <p><strong>Step 1:</strong> Put qubits in superposition (H gates)</p>
+        <p><strong>Step 2:</strong> Apply problem-specific gates that create interference</p>
+        <p><strong>Step 3:</strong> Measure to read the answer</p>
+        <p style="margin-top:0.3rem;">The demos in the next tabs follow exactly this pattern.</p>
+      </div>
+      <div class="step-nav">
+        <button class="step-btn" data-target="playground">&larr; Gates</button>
+        <button class="step-btn" data-target="race">Grover's Search &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 6. GROVER'S RACE ====== -->
+  <div id="panel-race" class="panel panel-bottom">
+    <div class="glass-panel" style="text-align:center;">
+      <div class="demo-explainer">
+        <strong>The Problem:</strong> Find one specific item in an unsorted database of N items.<br>
+        <strong>Classical:</strong> Check one by one. Average N/2 steps.<br>
+        <strong>Grover's:</strong> Superposition + amplitude amplification. ~&#8730;N steps.<br>
+        <span class="demo-usecase">Use cases: database search, SAT solving, optimization subroutines</span>
+      </div>
+      <div class="demo-controls">
+        <label style="font-size:0.75rem;color:var(--text-dim);">Database:</label>
+        <select id="race-size" class="demo-select">
+          <option value="256">256 items</option>
+          <option value="1024">1,024 items</option>
+        </select>
+        <button id="race-start" class="btn-primary">Start Race</button>
+        <button id="race-reset" class="btn-secondary">Reset</button>
+      </div>
+      <div class="demo-stats">
+        <span class="classical" id="race-classical-count">Classical: 0/256</span>
+        <span class="quantum" id="race-quantum-count">Grover: 0/13</span>
+      </div>
+      <div class="demo-narration" id="race-narration"></div>
+      <div class="demo-result" id="race-result"></div>
+    </div>
+  </div>
+
+  <!-- ====== 7. SHOR'S FACTORING ====== -->
+  <div id="panel-shors" class="panel panel-bottom">
+    <div class="glass-panel" style="text-align:center;">
+      <div class="demo-explainer">
+        <strong>The Problem:</strong> Factor a large number into primes. This is the foundation of RSA encryption &mdash; HTTPS, banking, digital signatures.<br>
+        <strong>Classical:</strong> Trial division. For RSA-2048: ~300 trillion years.<br>
+        <strong>Shor's:</strong> Quantum Fourier transform finds hidden periodicity. Hours, not eons.<br>
+        <span class="demo-usecase">Impact: NIST standardized post-quantum cryptography in 2024 because of this algorithm</span>
+      </div>
+      <div class="demo-controls">
+        <button id="shors-start" class="btn-primary">Break the Lock</button>
+        <button id="shors-reset" class="btn-secondary">Reset</button>
+      </div>
+      <div class="demo-stats">
+        <span class="classical" id="shors-classical-count">Classical: 0 divisors tested</span>
+        <span class="quantum" id="shors-quantum-count">Quantum: 0 iterations</span>
+      </div>
+      <div class="demo-narration" id="shors-narration"></div>
+      <div class="demo-result" id="shors-result"></div>
+    </div>
+  </div>
+
+  <!-- ====== 8. OPTIMIZATION ====== -->
+  <div id="panel-optimization" class="panel panel-bottom">
+    <div class="glass-panel" style="text-align:center;">
+      <div class="demo-explainer">
+        <strong>The Problem:</strong> Find the shortest route visiting all cities (Traveling Salesman). 8 cities = 40,320 possible routes.<br>
+        <strong>Classical:</strong> Try routes one by one, or use heuristics (good but not guaranteed optimal).<br>
+        <strong>Quantum QAOA:</strong> Encode all routes in superposition, amplify shorter routes through variational optimization.<br>
+        <span class="demo-usecase">Use cases: logistics (Amazon, FedEx), financial portfolios, drug design, chip routing, airline scheduling</span>
+      </div>
+      <div class="demo-controls">
+        <button id="opt-start" class="btn-primary">Find Route</button>
+        <button id="opt-reset" class="btn-secondary">Reset</button>
+      </div>
+      <div class="demo-stats">
+        <span class="classical" id="opt-classical-count">Paths tested: 0/40,320</span>
+        <span class="quantum" id="opt-quantum-count">QAOA iteration: 0/30</span>
+      </div>
+      <div class="demo-narration" id="opt-narration"></div>
+      <div class="demo-result" id="opt-result"></div>
+    </div>
+  </div>
+
+  <!-- ====== 9. QUANTUM CRYPTO ====== -->
+  <div id="panel-qkd" class="panel panel-bottom">
+    <div class="glass-panel" style="text-align:center;">
+      <div class="demo-explainer">
+        <strong>The Problem:</strong> Share a secret key when someone might be eavesdropping.<br>
+        <strong>Classical:</strong> You can't detect eavesdropping. If Eve copies your messages, you'll never know.<br>
+        <strong>Quantum BB84:</strong> Measuring a quantum state disturbs it. Eavesdropping introduces detectable errors.<br>
+        <span class="demo-usecase">Already deployed: China's quantum satellite link, European QKD networks, Swiss banking</span>
+      </div>
+      <div class="demo-controls">
+        <button id="qkd-start" class="btn-primary">Send Photons</button>
+        <button id="qkd-reset" class="btn-secondary">Reset</button>
+      </div>
+      <div class="demo-stats">
+        <span class="classical" id="qkd-classical-count">Classical: Eve undetected</span>
+        <span class="quantum" id="qkd-quantum-count">Quantum: 0 photons sent</span>
+      </div>
+      <div class="demo-narration" id="qkd-narration"></div>
+      <div class="demo-result" id="qkd-result"></div>
+    </div>
+  </div>
+
+  <!-- ====== 10. WHAT'S NEXT ====== -->
+  <div id="panel-next" class="panel panel-right">
+    <div class="glass-panel content-panel">
+      <div class="edu-section">
+        <h3>What We Covered</h3>
+        <p>Qubits, gates, circuits, and 4 algorithms showing different quantum advantages: <strong>quadratic search</strong> (Grover's), <strong>exponential factoring</strong> (Shor's), <strong>optimization</strong> (QAOA), and <strong>provable security</strong> (QKD).</p>
+      </div>
+      <div class="edu-section">
+        <h3>What We Didn't Cover</h3>
+        <p>Multi-qubit entanglement in depth, quantum error correction, decoherence, different hardware types (superconducting, trapped ions, photonics), and actual quantum programming with SDKs.</p>
+      </div>
+      <div class="edu-section">
+        <h3>The Quantum Timeline</h3>
+        <p><strong>Now:</strong> QKD deployed, 100-1000 qubit processors, early optimization experiments.</p>
+        <p><strong>2-5 years:</strong> Quantum advantage for specific optimization problems, early error correction.</p>
+        <p><strong>10+ years:</strong> Fault-tolerant quantum computers, Shor's on RSA-scale numbers.</p>
+      </div>
+      <div class="edu-section">
+        <h3>Developer's Reading Path</h3>
+        <div class="edu-links">
+          <a href="https://quantum.country" target="_blank" rel="noopener">Quantum Country</a>
+          <a href="https://learning.quantum.ibm.com/" target="_blank" rel="noopener">IBM Quantum</a>
+          <a href="https://github.com/Qiskit/textbook" target="_blank" rel="noopener">Qiskit Textbook</a>
+          <a href="https://worldquantumday.org" target="_blank" rel="noopener">World Quantum Day</a>
+        </div>
+      </div>
+      <div class="step-nav">
+        <button class="step-btn" data-target="qkd">&larr; Quantum Crypto</button>
+        <button class="step-btn" data-target="hero">Back to Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav id="nav-tabs">
+    <button class="nav-tab active" data-panel="hero">Welcome</button>
+    <button class="nav-tab" data-panel="bridge">Bits vs Qubits</button>
+    <button class="nav-tab" data-panel="qubit-intro">The Qubit</button>
+    <button class="nav-tab" data-panel="playground">Gates</button>
+    <button class="nav-tab" data-panel="circuits">Circuits</button>
+    <button class="nav-tab separator">|</button>
+    <button class="nav-tab" data-panel="race">Grover's</button>
+    <button class="nav-tab" data-panel="shors">Shor's</button>
+    <button class="nav-tab" data-panel="optimization">Optimize</button>
+    <button class="nav-tab" data-panel="qkd">QKD</button>
+    <button class="nav-tab separator">|</button>
+    <button class="nav-tab" data-panel="next">What's Next</button>
+  </nav>
+
+  <!-- AR -->
+  <button id="ar-button">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    AR
+  </button>
+  <div id="ar-overlay">
+    <p style="color:white;text-align:center;margin-bottom:1rem;text-shadow:0 1px 4px rgba(0,0,0,0.8);">Tap a surface to place the Bloch sphere</p>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="gate-btn" data-gate="H">H</button>
+      <button class="gate-btn" data-gate="X">X</button>
+      <button class="gate-btn" data-gate="Y">Y</button>
+      <button class="gate-btn" data-gate="Z">Z</button>
+      <button class="gate-btn" data-gate="RESET">Reset</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import './js/app.js';
+    window.addEventListener('load', () => { setTimeout(() => { document.getElementById('loading').classList.add('hidden'); }, 1500); });
+  </script>
+</body>
+</html>
