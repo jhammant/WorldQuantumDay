@@ -235,6 +235,31 @@
     .edu-links a:hover { background: rgba(0,255,204,0.1); }
 
     /* AR */
+    /* Easy mode toggle */
+    .easy-toggle { display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; color: var(--text-dim); }
+    .easy-toggle input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 32px; height: 18px; background: rgba(255,255,255,0.1); border-radius: 9px; position: relative; cursor: pointer; transition: background 0.3s; }
+    .easy-toggle input[type="checkbox"]::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: var(--text-dim); border-radius: 50%; transition: all 0.3s; }
+    .easy-toggle input[type="checkbox"]:checked { background: rgba(0,255,204,0.3); }
+    .easy-toggle input[type="checkbox"]:checked::after { left: 16px; background: var(--cyan); }
+    /* Easy mode content swaps */
+    .easy-content { display: none; }
+    .normal-content { display: block; }
+    body.easy-mode .easy-content { display: block; }
+    body.easy-mode .normal-content { display: none; }
+
+    /* Code block */
+    .code-block { background: rgba(0,0,0,0.4); border: 1px solid rgba(100,140,255,0.15); border-radius: 8px; padding: 0.8rem; margin: 0.5rem 0; font-family: 'Courier New', monospace; font-size: 0.72rem; line-height: 1.5; color: #a0c0ff; overflow-x: auto; white-space: pre; }
+    .code-block .comment { color: rgba(200,210,255,0.35); }
+    .code-block .keyword { color: var(--cyan); }
+    .code-block .string { color: #ffd700; }
+
+    /* CTA button */
+    .cta-big { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 12px; border: 1px solid var(--cyan); background: rgba(0,255,204,0.12); color: var(--cyan); font-size: 0.82rem; font-weight: 700; text-decoration: none; transition: all 0.3s; }
+    .cta-big:hover { background: rgba(0,255,204,0.25); box-shadow: 0 0 30px rgba(0,255,204,0.3); transform: translateY(-1px); }
+
+    /* Drag hint */
+    .drag-hint { font-size: 0.65rem; color: rgba(0,255,204,0.4); text-align: center; margin-top: 0.3rem; }
+
     #ar-button { position: fixed; top: 0.8rem; right: 1.5rem; z-index: 10; padding: 0.4rem 0.8rem; border-radius: 10px; border: 1px solid var(--cyan); background: rgba(0,255,204,0.08); color: var(--cyan); font-size: 0.75rem; font-weight: 600; cursor: pointer; display: none; align-items: center; gap: 0.3rem; backdrop-filter: blur(20px); transition: all 0.2s; }
     #ar-button:hover { background: rgba(0,255,204,0.18); }
     #ar-overlay { display: none; position: fixed; inset: 0; z-index: 50; flex-direction: column; align-items: center; justify-content: flex-end; padding: 2rem; }
@@ -257,7 +282,10 @@
 
   <div id="top-bar">
     <span class="brand">Quantum Frontiers</span>
-    <span class="badge">World Quantum Day &middot; April 14, 2026</span>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <label class="easy-toggle"><input type="checkbox" id="easy-mode-toggle"> Easy Mode</label>
+      <span class="badge">World Quantum Day &middot; April 14, 2026</span>
+    </div>
   </div>
 
   <!-- ====== 1. HERO ====== -->
@@ -269,21 +297,41 @@
   <!-- ====== 2. BITS vs QUBITS ====== -->
   <div id="panel-bridge" class="panel panel-right">
     <div class="glass-panel content-panel">
-      <div class="edu-section">
-        <h3>You Already Know This</h3>
-        <p>A classical bit is <strong>0</strong> or <strong>1</strong>. A NOT gate flips it. AND, OR, and XOR combine pairs of bits. From these primitives, you build everything &mdash; processors, operating systems, the internet.</p>
+      <div class="normal-content">
+        <div class="edu-section">
+          <h3>You Already Know This</h3>
+          <p>A classical bit is <strong>0</strong> or <strong>1</strong>. A NOT gate flips it. AND, OR, and XOR combine pairs of bits. From these primitives, you build everything &mdash; processors, operating systems, the internet.</p>
+        </div>
+        <div class="edu-section">
+          <h3>What Changes</h3>
+          <p>A <strong>qubit</strong> can be 0, 1, or a <strong>superposition</strong> of both simultaneously. This isn't "maybe 0 or maybe 1 and we don't know." The qubit genuinely exists in both states at once, weighted by complex numbers called <em>amplitudes</em>.</p>
+          <p style="margin-top:0.4rem;">Think of a coin: a classical bit is heads or tails on the table. A qubit is a coin spinning in the air &mdash; it has some probability of landing each way, but while spinning, it's in a state that is neither purely heads nor tails.</p>
+          <p class="edu-note">The coin analogy breaks down because quantum amplitudes can be negative and complex, enabling interference. That's where the real power comes from.</p>
+        </div>
+        <div class="edu-section">
+          <h3>The Three Big Ideas</h3>
+          <p><span class="edu-highlight">Superposition:</span> A qubit processes multiple possibilities at once. N qubits can represent 2&#x207F; states simultaneously.</p>
+          <p style="margin-top:0.3rem;"><span class="edu-highlight">Entanglement:</span> Correlations between qubits that have no classical equivalent. Measuring one instantly determines the other, no matter the distance.</p>
+          <p style="margin-top:0.3rem;"><span class="edu-highlight">Interference:</span> Amplitudes can cancel (destructive) or reinforce (constructive). Quantum algorithms use this to amplify right answers and suppress wrong ones.</p>
+        </div>
       </div>
-      <div class="edu-section">
-        <h3>What Changes</h3>
-        <p>A <strong>qubit</strong> can be 0, 1, or a <strong>superposition</strong> of both simultaneously. This isn't "maybe 0 or maybe 1 and we don't know." The qubit genuinely exists in both states at once, weighted by complex numbers called <em>amplitudes</em>.</p>
-        <p style="margin-top:0.4rem;">Think of a coin: a classical bit is heads or tails on the table. A qubit is a coin spinning in the air &mdash; it has some probability of landing each way, but while spinning, it's in a state that is neither purely heads nor tails.</p>
-        <p class="edu-note">The coin analogy breaks down because quantum amplitudes can be negative and complex, enabling interference. That's where the real power comes from.</p>
+      <div class="easy-content">
+        <div class="edu-section">
+          <h3>Regular Computers</h3>
+          <p>A regular computer uses <strong>bits</strong> &mdash; tiny switches that are either OFF (0) or ON (1). Everything your computer does is built from billions of these switches.</p>
+        </div>
+        <div class="edu-section">
+          <h3>Quantum Computers Are Different</h3>
+          <p>A quantum computer uses <strong>qubits</strong>. The magic? A qubit can be <strong>both 0 and 1 at the same time</strong> &mdash; like a coin spinning in the air before it lands.</p>
+          <p style="margin-top:0.4rem;">This lets quantum computers explore many answers simultaneously instead of checking them one by one.</p>
+        </div>
+        <div class="edu-section">
+          <h3>Three Superpowers</h3>
+          <p><span class="edu-highlight">Superposition:</span> Try all answers at once (like reading every book in a library simultaneously).</p>
+          <p style="margin-top:0.3rem;"><span class="edu-highlight">Entanglement:</span> Link qubits so they instantly affect each other (Einstein called it "spooky action at a distance").</p>
+          <p style="margin-top:0.3rem;"><span class="edu-highlight">Interference:</span> Make wrong answers cancel out and right answers get louder (like noise-canceling headphones for computation).</p>
+        </div>
       </div>
-      <div class="edu-section">
-        <h3>The Three Big Ideas</h3>
-        <p><span class="edu-highlight">Superposition:</span> A qubit processes multiple possibilities at once. N qubits can represent 2&#x207F; states simultaneously.</p>
-        <p style="margin-top:0.3rem;"><span class="edu-highlight">Entanglement:</span> Correlations between qubits that have no classical equivalent. Measuring one instantly determines the other, no matter the distance.</p>
-        <p style="margin-top:0.3rem;"><span class="edu-highlight">Interference:</span> Amplitudes can cancel (destructive) or reinforce (constructive). Quantum algorithms use this to amplify right answers and suppress wrong ones.</p>
       </div>
       <div class="step-nav">
         <button class="step-btn" data-target="hero">&larr; Welcome</button>
@@ -312,6 +360,7 @@
         <p>Click below to apply a Hadamard gate and watch the state arrow move from |0&#10217; to the equator.</p>
         <button class="btn-primary" id="try-h-btn" style="margin-top:0.4rem;">Apply H Gate &rarr;</button>
       </div>
+      <p class="drag-hint">Drag the sphere to rotate it</p>
       <div class="step-nav">
         <button class="step-btn" data-target="bridge">&larr; Bits vs Qubits</button>
         <button class="step-btn" data-target="playground">Gates &rarr;</button>
@@ -348,6 +397,7 @@
         <button class="gate-btn" data-gate="T" title="T-Gate">T</button>
         <button class="gate-btn" data-gate="RESET" title="Reset">Reset</button>
       </div>
+      <p class="drag-hint">Drag the sphere above to rotate it</p>
       <div id="gate-info">Click a gate above to see what it does.</div>
       <div id="gate-challenges">
         <div class="challenge">
@@ -513,24 +563,38 @@
   <div id="panel-next" class="panel panel-right">
     <div class="glass-panel content-panel">
       <div class="edu-section">
-        <h3>What We Covered</h3>
-        <p>Qubits, gates, circuits, and 4 algorithms showing different quantum advantages: <strong>quadratic search</strong> (Grover's), <strong>exponential factoring</strong> (Shor's), <strong>optimization</strong> (QAOA), and <strong>provable security</strong> (QKD).</p>
-      </div>
-      <div class="edu-section">
-        <h3>What We Didn't Cover</h3>
-        <p>Multi-qubit entanglement in depth, quantum error correction, decoherence, different hardware types (superconducting, trapped ions, photonics), and actual quantum programming with SDKs.</p>
+        <h3>Run a Quantum Computer TODAY</h3>
+        <p>IBM lets anyone run real quantum circuits for free. Here's a Qiskit program that creates superposition and measures it &mdash; on actual quantum hardware:</p>
+        <div class="code-block"><span class="keyword">from</span> qiskit <span class="keyword">import</span> QuantumCircuit
+<span class="keyword">from</span> qiskit_ibm_runtime <span class="keyword">import</span> SamplerV2
+
+<span class="comment"># Create a circuit: H gate then measure</span>
+qc = QuantumCircuit(<span class="string">1</span>, <span class="string">1</span>)
+qc.h(<span class="string">0</span>)        <span class="comment"># Superposition!</span>
+qc.measure(<span class="string">0</span>, <span class="string">0</span>)
+
+<span class="comment"># Run on real quantum hardware</span>
+sampler = SamplerV2()
+result = sampler.run([qc]).result()
+<span class="keyword">print</span>(result[<span class="string">0</span>].data.c.get_counts())
+<span class="comment"># {'0': ~500, '1': ~500}</span></div>
+        <a href="https://quantum.ibm.com/" target="_blank" rel="noopener" class="cta-big" style="margin-top:0.6rem;">
+          Run on IBM Quantum (free)
+        </a>
+        <p class="edu-note" style="margin-top:0.4rem;">Sign up takes 2 minutes. You'll be running on a real superconducting quantum processor.</p>
       </div>
       <div class="edu-section">
         <h3>The Quantum Timeline</h3>
-        <p><strong>Now:</strong> QKD deployed, 100-1000 qubit processors, early optimization experiments.</p>
-        <p><strong>2-5 years:</strong> Quantum advantage for specific optimization problems, early error correction.</p>
-        <p><strong>10+ years:</strong> Fault-tolerant quantum computers, Shor's on RSA-scale numbers.</p>
+        <p><strong>Now:</strong> QKD deployed, 100-1000 qubit processors, optimization experiments on real hardware.</p>
+        <p><strong>2-5 years:</strong> Quantum advantage for specific problems, early error correction.</p>
+        <p><strong>10+ years:</strong> Fault-tolerant machines, Shor's on RSA-scale numbers.</p>
       </div>
       <div class="edu-section">
-        <h3>Developer's Reading Path</h3>
+        <h3>Keep Learning</h3>
         <div class="edu-links">
+          <a href="https://quantum.ibm.com/" target="_blank" rel="noopener">IBM Quantum (run code)</a>
           <a href="https://quantum.country" target="_blank" rel="noopener">Quantum Country</a>
-          <a href="https://learning.quantum.ibm.com/" target="_blank" rel="noopener">IBM Quantum</a>
+          <a href="https://learning.quantum.ibm.com/" target="_blank" rel="noopener">IBM Courses</a>
           <a href="https://github.com/Qiskit/textbook" target="_blank" rel="noopener">Qiskit Textbook</a>
           <a href="https://worldquantumday.org" target="_blank" rel="noopener">World Quantum Day</a>
         </div>

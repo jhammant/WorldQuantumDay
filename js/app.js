@@ -1,5 +1,6 @@
 // app.js — Main application bootstrap and orchestration
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { BlochSphere } from './bloch-sphere.js';
 import { AmbientParticles, GateBurstParticles } from './particles.js';
 import { QuantumRace } from './race.js';
@@ -10,30 +11,31 @@ import { ARMode } from './ar.js';
 import * as Qubit from './qubit.js';
 
 // ——— State ———
-let renderer, scene, camera;
+let renderer, scene, camera, controls;
 let blochSphere, ambientParticles, burstParticles, race, shors, optimization, qkd, arMode;
 let composer = null;
 let qubitState = Qubit.initialState();
 let activePanel = 'hero';
 let autoRotate = true;
+let easyMode = false;
 let gateQueue = [];
 let processingGate = false;
 
-// Camera targets per panel
+// Camera targets per panel — demo panels push camera UP so 3D sits in upper half
 const cameraPoses = {
   hero: new THREE.Vector3(0, 0.3, 3.5),
   bridge: new THREE.Vector3(0, 0.3, 3.5),
-  'qubit-intro': new THREE.Vector3(0, 0, 3),
-  playground: new THREE.Vector3(0, 0, 3),
+  'qubit-intro': new THREE.Vector3(0, 0.2, 3),
+  playground: new THREE.Vector3(0, 0.4, 3),
   circuits: new THREE.Vector3(0, 0.3, 3.5),
-  race: new THREE.Vector3(0, 0, 3.5),
-  shors: new THREE.Vector3(0, 0, 3.5),
-  optimization: new THREE.Vector3(0, 0, 3.5),
-  qkd: new THREE.Vector3(0, 0, 3.5),
+  race: new THREE.Vector3(0, 0.8, 4),
+  shors: new THREE.Vector3(0, 0.6, 4),
+  optimization: new THREE.Vector3(0, 0.6, 4),
+  qkd: new THREE.Vector3(0, 0.5, 4),
   next: new THREE.Vector3(0, 0.2, 3.5)
 };
 
-// Expanded gate explanations
+// Expanded gate explanations — normal and easy mode
 const GATE_EXPLANATIONS = {
   H: '<strong style="color:#ffd700">Hadamard (H)</strong> — The most important single-qubit gate. Creates equal superposition from |0⟩. No classical equivalent. On the Bloch sphere: 180° rotation around an axis between X and Z.',
   X: '<strong style="color:#ff4444">Pauli-X</strong> — The quantum NOT gate. Flips |0⟩ to |1⟩ and vice versa, just like classical NOT. On the Bloch sphere: 180° rotation around X. Try it after H to see something interesting.',
@@ -41,6 +43,14 @@ const GATE_EXPLANATIONS = {
   Z: '<strong style="color:#4488ff">Pauli-Z</strong> — Phase flip. Leaves |0⟩ alone, flips the sign of |1⟩. If you\'re in superposition (H first), Z changes the phase without changing probabilities.',
   S: '<strong style="color:#aa44ff">S-Gate</strong> — Quarter-turn around Z (90° of phase). Applying S twice gives Z. Like rotating the "phase dial" a quarter turn.',
   T: '<strong style="color:#44ffdd">T-Gate</strong> — Eighth-turn around Z (45° of phase). T twice = S. The T gate + H + CNOT form a <em>universal gate set</em> — any quantum computation can be built from these three.'
+};
+const GATE_EASY = {
+  H: '<strong style="color:#ffd700">H gate</strong> — Makes the qubit "both 0 and 1 at the same time." Like flipping a coin into the air instead of laying it flat.',
+  X: '<strong style="color:#ff4444">X gate</strong> — Flips 0 to 1 and 1 to 0. Just like pressing a light switch.',
+  Y: '<strong style="color:#44ff44">Y gate</strong> — Flips AND rotates. Like the X gate but with a twist.',
+  Z: '<strong style="color:#4488ff">Z gate</strong> — Doesn\'t change 0 or 1, but changes the "hidden angle." Think of it like changing the direction a spinning top wobbles.',
+  S: '<strong style="color:#aa44ff">S gate</strong> — A small twist of that hidden angle. Do it twice and you get Z.',
+  T: '<strong style="color:#44ffdd">T gate</strong> — An even smaller twist. These tiny twists are building blocks for everything in quantum computing.'
 };
 
 // ——— Init ———
@@ -75,6 +85,14 @@ async function init() {
       composer.addPass(new OutputPass());
     } catch (e) { console.warn('Post-processing not available:', e); }
   }
+
+  // OrbitControls for Bloch sphere interaction
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enableZoom = false;
+  controls.enablePan = false;
+  controls.enabled = false; // enabled only in playground/qubit-intro
 
   // Scene objects
   blochSphere = new BlochSphere();
@@ -111,6 +129,7 @@ async function init() {
   setupShorsUI();
   setupOptimizationUI();
   setupQKDUI();
+  setupEasyMode();
   updateStateDisplay();
 
   // Animation loop
@@ -127,13 +146,17 @@ async function init() {
 
     const t = time || performance.now();
 
-    if (autoRotate) {
+    if (autoRotate && !controls.enabled) {
       blochSphere.group.rotation.y += 0.003;
       blochSphere.group.rotation.x = Math.sin(t * 0.0003) * 0.1;
     }
 
-    const target = cameraPoses[activePanel] || cameraPoses.hero;
-    camera.position.lerp(target, 0.04);
+    if (controls.enabled) {
+      controls.update();
+    } else {
+      const target = cameraPoses[activePanel] || cameraPoses.hero;
+      camera.position.lerp(target, 0.04);
+    }
 
     blochSphere.update(t);
     ambientParticles.update(t);
@@ -198,12 +221,20 @@ function switchPanel(id) {
   document.getElementById('state-panel').classList.toggle('active', id === 'playground');
 
   // Default: sphere visible, auto-rotate, particles on, all viz hidden
-  const blochVisible = !['race', 'shors', 'optimization', 'qkd'].includes(id);
+  const demoTabs = ['race', 'shors', 'optimization', 'qkd'];
+  const blochVisible = !demoTabs.includes(id);
   const particlesVisible = blochVisible;
+  const interactiveSphere = ['playground', 'qubit-intro'].includes(id);
 
-  autoRotate = !['playground'].includes(id);
+  autoRotate = !interactiveSphere;
+  controls.enabled = interactiveSphere;
+  if (!interactiveSphere) {
+    // Reset camera to target when leaving interactive mode
+    camera.position.copy(cameraPoses[id] || cameraPoses.hero);
+    controls.reset();
+  }
   blochSphere.group.visible = blochVisible;
-  if (blochVisible && !autoRotate) blochSphere.group.rotation.set(0, 0, 0);
+  if (blochVisible && !autoRotate && !interactiveSphere) blochSphere.group.rotation.set(0, 0, 0);
   ambientParticles.points.visible = particlesVisible;
   hideAllViz();
 
@@ -284,9 +315,19 @@ function updateStateDisplay(state = null) {
 
 function showGateInfo(gateName) {
   const info = document.getElementById('gate-info');
-  if (info && GATE_EXPLANATIONS[gateName]) {
-    info.innerHTML = GATE_EXPLANATIONS[gateName];
-  }
+  if (!info) return;
+  const src = easyMode ? GATE_EASY : GATE_EXPLANATIONS;
+  if (src[gateName]) info.innerHTML = src[gateName];
+}
+
+// ——— Easy Mode ———
+function setupEasyMode() {
+  const toggle = document.getElementById('easy-mode-toggle');
+  if (!toggle) return;
+  toggle.addEventListener('change', () => {
+    easyMode = toggle.checked;
+    document.body.classList.toggle('easy-mode', easyMode);
+  });
 }
 
 // ——— Demo UI helpers ———
