@@ -262,6 +262,38 @@
     .circuit-gate.highlight { background: rgba(0,255,204,0.2); border-color: var(--cyan); transition: background 0.15s; }
     .circuit-tally { font-family: 'Courier New', monospace; font-size: 0.68rem; color: var(--text-dim); margin-top: 0.15rem; }
 
+    /* Algorithm detail modal */
+    .algo-modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 50;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+      align-items: center; justify-content: center; padding: 1rem;
+    }
+    .algo-modal-overlay.open { display: flex; }
+    .algo-modal {
+      background: rgba(12,12,30,0.95); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 1.5rem 2rem; max-width: 560px; width: 100%;
+      max-height: 80vh; overflow-y: auto; position: relative;
+      scrollbar-width: thin; scrollbar-color: rgba(0,255,204,0.2) transparent;
+    }
+    .algo-modal::-webkit-scrollbar { width: 4px; }
+    .algo-modal::-webkit-scrollbar-thumb { background: rgba(0,255,204,0.2); border-radius: 2px; }
+    .algo-modal h2 { font-size: 1.1rem; color: var(--cyan); margin-bottom: 0.8rem; }
+    .algo-modal h4 { font-size: 0.85rem; color: var(--blue); margin: 0.8rem 0 0.3rem; }
+    .algo-modal p { font-size: 0.8rem; line-height: 1.6; color: var(--text-dim); margin-bottom: 0.4rem; }
+    .algo-modal .code-block { font-size: 0.7rem; margin: 0.4rem 0 0.6rem; }
+    .algo-modal-close {
+      position: absolute; top: 0.8rem; right: 0.8rem;
+      background: none; border: none; color: var(--text-dim); font-size: 1.2rem;
+      cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; transition: all 0.2s;
+    }
+    .algo-modal-close:hover { color: var(--cyan); background: rgba(0,255,204,0.1); }
+    .btn-detail {
+      font-size: 0.7rem; color: var(--blue); background: none; border: 1px solid rgba(68,136,255,0.3);
+      padding: 0.25rem 0.6rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-left: 0.3rem;
+    }
+    .btn-detail:hover { background: rgba(68,136,255,0.15); color: #fff; }
+
     /* CTA button */
     .cta-big { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 12px; border: 1px solid var(--cyan); background: rgba(0,255,204,0.12); color: var(--cyan); font-size: 0.82rem; font-weight: 700; text-decoration: none; transition: all 0.3s; }
     .cta-big:hover { background: rgba(0,255,204,0.25); box-shadow: 0 0 30px rgba(0,255,204,0.3); transform: translateY(-1px); }
@@ -492,6 +524,7 @@
         </select>
         <button id="race-start" class="btn-primary">Start Race</button>
         <button id="race-reset" class="btn-secondary">Reset</button>
+        <button class="btn-detail" onclick="openAlgoModal('grover')">How it works</button>
       </div>
       <div class="demo-stats">
         <span class="classical" id="race-classical-count">Classical: 0/256</span>
@@ -514,6 +547,7 @@
       <div class="demo-controls">
         <button id="shors-start" class="btn-primary">Break the Lock</button>
         <button id="shors-reset" class="btn-secondary">Reset</button>
+        <button class="btn-detail" onclick="openAlgoModal('shors')">How it works</button>
       </div>
       <div class="demo-stats">
         <span class="classical" id="shors-classical-count">Classical: 0 divisors tested</span>
@@ -536,6 +570,7 @@
       <div class="demo-controls">
         <button id="opt-start" class="btn-primary">Find Route</button>
         <button id="opt-reset" class="btn-secondary">Reset</button>
+        <button class="btn-detail" onclick="openAlgoModal('qaoa')">How it works</button>
       </div>
       <div class="demo-stats">
         <span class="classical" id="opt-classical-count">Paths tested: 0/40,320</span>
@@ -558,6 +593,7 @@
       <div class="demo-controls">
         <button id="qkd-start" class="btn-primary">Send Photons</button>
         <button id="qkd-reset" class="btn-secondary">Reset</button>
+        <button class="btn-detail" onclick="openAlgoModal('bb84')">How it works</button>
       </div>
       <div class="demo-stats">
         <span class="classical" id="qkd-classical-count">Classical: Eve undetected</span>
@@ -616,6 +652,13 @@ result = sampler.run([qc]).result()
     </div>
   </div>
 
+  <!-- Algorithm detail modals -->
+  <div class="algo-modal-overlay" id="algo-modal" onclick="if(event.target===this)closeAlgoModal()">
+    <div class="algo-modal" id="algo-modal-content">
+      <button class="algo-modal-close" onclick="closeAlgoModal()">&times;</button>
+    </div>
+  </div>
+
   <!-- Navigation -->
   <nav id="nav-tabs">
     <button class="nav-tab active" data-panel="hero">Welcome</button>
@@ -647,6 +690,175 @@ result = sampler.run([qc]).result()
       <button class="gate-btn" data-gate="RESET">Reset</button>
     </div>
   </div>
+
+  <!-- Algorithm modals + Interactive circuit runner -->
+  <script>
+    const algoContent = {
+      grover: `
+        <h2>Grover's Search Algorithm</h2>
+        <p>Finds a marked item in an unsorted database of N items using only ~&radic;N queries, compared to N/2 on average for classical search.</p>
+        <h4>Key Insight</h4>
+        <p>Start with all items in equal superposition. Repeatedly apply two operations: (1) mark the target by flipping its amplitude, and (2) amplify marked amplitudes using "inversion about the mean." After ~&radic;N repetitions, the target has near-100% probability.</p>
+        <h4>Pseudocode</h4>
+        <div class="code-block"><span class="keyword">function</span> grover_search(database, oracle):
+    n_qubits = log2(len(database))
+
+    <span class="comment">// Step 1: Initialize superposition</span>
+    qubits = apply_H_to_all(|0...0>)
+    <span class="comment">// Now every item has equal amplitude 1/&radic;N</span>
+
+    <span class="comment">// Step 2: Repeat ~&radic;N times</span>
+    <span class="keyword">for</span> i <span class="keyword">in</span> range(&pi;/4 * &radic;N):
+
+        <span class="comment">// 2a: Oracle marks the target</span>
+        <span class="comment">// (flips the sign of the target amplitude)</span>
+        qubits = oracle(qubits)
+
+        <span class="comment">// 2b: Diffusion operator</span>
+        <span class="comment">// (reflects all amplitudes about the mean)</span>
+        qubits = H_all(qubits)
+        qubits = flip_if_zero(qubits)
+        qubits = H_all(qubits)
+
+    <span class="comment">// Step 3: Measure</span>
+    <span class="keyword">return</span> measure(qubits)  <span class="comment">// target with high probability</span></div>
+        <h4>Why It Works</h4>
+        <p>Each iteration rotates the state vector in a 2D subspace by a fixed angle toward the target. After &pi;/4 &times; &radic;N rotations, the state is aligned with the target. This geometric view is why the number of iterations is so precise.</p>
+        <h4>Complexity</h4>
+        <p><strong>Classical:</strong> O(N) &mdash; check items one by one.<br>
+        <strong>Quantum:</strong> O(&radic;N) &mdash; quadratic speedup. For N=1,000,000: classical needs ~500,000 checks; Grover's needs ~1,000.</p>
+      `,
+      shors: `
+        <h2>Shor's Factoring Algorithm</h2>
+        <p>Factors an integer N into its prime components in polynomial time, breaking RSA encryption.</p>
+        <h4>Key Insight</h4>
+        <p>Factoring reduces to finding the <em>period</em> of modular exponentiation: f(x) = a^x mod N. Classical computers can't find this period efficiently. Quantum computers can, using the Quantum Fourier Transform (QFT).</p>
+        <h4>Pseudocode</h4>
+        <div class="code-block"><span class="keyword">function</span> shors_factor(N):
+    <span class="comment">// Step 1: Pick random a < N</span>
+    a = random_coprime(N)
+
+    <span class="comment">// Step 2: Find the period r of f(x) = a^x mod N</span>
+    <span class="comment">// This is the quantum part!</span>
+    r = quantum_period_finding(a, N)
+
+    <span class="comment">// Step 3: Use period to find factors</span>
+    <span class="keyword">if</span> r is even:
+        p = gcd(a^(r/2) - 1, N)
+        q = gcd(a^(r/2) + 1, N)
+        <span class="keyword">return</span> (p, q)
+
+<span class="keyword">function</span> quantum_period_finding(a, N):
+    <span class="comment">// Create superposition of all x values</span>
+    |x> = H_all(|0...0>)
+
+    <span class="comment">// Compute f(x) = a^x mod N in superposition</span>
+    |x>|f(x)> = modular_exp(a, |x>, N)
+
+    <span class="comment">// Apply Quantum Fourier Transform to |x></span>
+    |x> = QFT(|x>)
+
+    <span class="comment">// Measure: result encodes the period</span>
+    measured = measure(|x>)
+    r = extract_period(measured)
+    <span class="keyword">return</span> r</div>
+        <h4>Why It Matters</h4>
+        <p>RSA encryption relies on the assumption that factoring large numbers is computationally infeasible. Shor's algorithm breaks this assumption. A quantum computer with ~4,000 error-corrected qubits could factor RSA-2048 in hours.</p>
+        <h4>Complexity</h4>
+        <p><strong>Classical (best known):</strong> O(exp(n^{1/3})) &mdash; exponential in key size.<br>
+        <strong>Quantum (Shor's):</strong> O(n^3) &mdash; polynomial. This is an <em>exponential</em> speedup.</p>
+      `,
+      qaoa: `
+        <h2>QAOA: Quantum Approximate Optimization</h2>
+        <p>A hybrid quantum-classical algorithm for combinatorial optimization problems like the Traveling Salesman.</p>
+        <h4>Key Insight</h4>
+        <p>Encode the optimization problem into a "cost Hamiltonian" (quantum energy function). Alternate between applying this cost function and a "mixing" operation. A classical optimizer tunes the parameters to minimize cost. The quantum computer explores many solutions simultaneously via superposition.</p>
+        <h4>Pseudocode</h4>
+        <div class="code-block"><span class="keyword">function</span> qaoa_optimize(problem, p_layers):
+    <span class="comment">// Encode problem as cost Hamiltonian H_C</span>
+    H_cost = encode_problem(problem)
+    H_mix  = sum_of_X_gates()  <span class="comment">// mixing Hamiltonian</span>
+
+    <span class="comment">// Initialize: equal superposition of all solutions</span>
+    |state> = H_all(|0...0>)
+
+    <span class="comment">// Classical optimizer picks angles</span>
+    gammas, betas = initial_guess(p_layers)
+
+    <span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):
+
+        <span class="comment">// Quantum part: apply p alternating layers</span>
+        |state> = H_all(|0...0>)
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(p_layers):
+            |state> = exp(-i * gammas[i] * H_cost) |state>
+            |state> = exp(-i * betas[i]  * H_mix)  |state>
+
+        <span class="comment">// Measure and compute cost</span>
+        result = measure(|state>)
+        cost = evaluate(result, problem)
+
+        <span class="comment">// Classical optimizer updates angles</span>
+        gammas, betas = optimizer.step(cost)
+
+    <span class="keyword">return</span> best_result</div>
+        <h4>Why It's Exciting Now</h4>
+        <p>Unlike Shor's (which needs error correction), QAOA can run on today's noisy quantum hardware. It's a leading candidate for near-term quantum advantage in logistics, finance, and drug discovery.</p>
+        <h4>Complexity</h4>
+        <p><strong>Classical brute force:</strong> O(N!) for N cities &mdash; factorial growth.<br>
+        <strong>QAOA:</strong> Explores exponentially many solutions in superposition. Not guaranteed optimal, but can find good solutions much faster for large instances.</p>
+      `,
+      bb84: `
+        <h2>BB84: Quantum Key Distribution</h2>
+        <p>Allows two parties (Alice and Bob) to share a secret encryption key with guaranteed detection of any eavesdropper (Eve).</p>
+        <h4>Key Insight</h4>
+        <p>Quantum mechanics guarantees that <em>measuring a quantum state disturbs it</em>. If Eve intercepts photons to read them, she unavoidably introduces errors. Alice and Bob can detect these errors by comparing a subset of their measurements.</p>
+        <h4>Protocol Steps</h4>
+        <div class="code-block"><span class="keyword">protocol</span> BB84:
+
+<span class="comment">// Step 1: Alice sends random photons</span>
+<span class="keyword">for</span> each bit:
+    Alice picks random bit (0 or 1)
+    Alice picks random basis (+ or &times;)
+    Alice sends photon encoded in that basis
+    <span class="comment">// + basis: 0=horizontal, 1=vertical</span>
+    <span class="comment">// &times; basis: 0=diagonal,  1=anti-diagonal</span>
+
+<span class="comment">// Step 2: Bob measures</span>
+<span class="keyword">for</span> each photon:
+    Bob picks random basis (+ or &times;)
+    Bob measures the photon
+    <span class="comment">// If same basis as Alice: gets correct bit</span>
+    <span class="comment">// If different basis: gets random result</span>
+
+<span class="comment">// Step 3: Sifting (public channel)</span>
+Alice and Bob announce their bases (not bits!)
+Keep only bits where bases matched (~50%)
+
+<span class="comment">// Step 4: Error checking</span>
+Compare a random subset of remaining bits
+<span class="keyword">if</span> error_rate > threshold:
+    <span class="comment">// Eve was eavesdropping! Abort.</span>
+    ALERT: channel compromised
+<span class="keyword">else</span>:
+    <span class="comment">// Remaining bits = secure shared key</span>
+    key = unchecked_matching_bits</div>
+        <h4>Why Eve Gets Caught</h4>
+        <p>If Eve intercepts a photon, she must measure it (collapsing its state) and send a new one to Bob. But she doesn't know Alice's basis, so ~25% of the time she introduces an error. Alice and Bob detect this by comparing a sample of their bits.</p>
+        <h4>Real-World Status</h4>
+        <p>BB84 was proposed in 1984 and is now commercially deployed. China's Micius satellite demonstrated 1,200km QKD in 2017. European banks use QKD networks today. This is <em>not</em> theoretical &mdash; it's operational infrastructure.</p>
+      `
+    };
+    function openAlgoModal(algo) {
+      const modal = document.getElementById('algo-modal');
+      const content = document.getElementById('algo-modal-content');
+      content.innerHTML = '<button class="algo-modal-close" onclick="closeAlgoModal()">&times;</button>' + (algoContent[algo] || '');
+      modal.classList.add('open');
+    }
+    function closeAlgoModal() {
+      document.getElementById('algo-modal').classList.remove('open');
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAlgoModal(); });
+  </script>
 
   <!-- Interactive circuit runner -->
   <script>
