@@ -253,6 +253,15 @@
     .code-block .keyword { color: var(--cyan); }
     .code-block .string { color: #ffd700; }
 
+    /* Interactive circuit output */
+    .circuit-output { font-size: 0.72rem; color: var(--text-dim); margin: 0.2rem 0 0.5rem; min-height: 1.2em; transition: color 0.3s; }
+    .circuit-output.result-0 { color: var(--blue); font-weight: 600; }
+    .circuit-output.result-1 { color: var(--purple); font-weight: 600; }
+    .circuit-measure { cursor: pointer; transition: all 0.2s; }
+    .circuit-measure:hover { background: rgba(170,68,255,0.2); border-color: var(--purple); color: #fff; }
+    .circuit-gate.highlight { background: rgba(0,255,204,0.2); border-color: var(--cyan); transition: background 0.15s; }
+    .circuit-tally { font-family: 'Courier New', monospace; font-size: 0.68rem; color: var(--text-dim); margin-top: 0.15rem; }
+
     /* CTA button */
     .cta-big { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 12px; border: 1px solid var(--cyan); background: rgba(0,255,204,0.12); color: var(--cyan); font-size: 0.82rem; font-weight: 700; text-decoration: none; transition: all 0.3s; }
     .cta-big:hover { background: rgba(0,255,204,0.25); box-shadow: 0 0 30px rgba(0,255,204,0.3); transform: translateY(-1px); }
@@ -428,29 +437,29 @@
       </div>
       <div class="edu-section">
         <h3>Simple Circuits</h3>
-        <p class="circuit-desc">Create superposition, then measure:</p>
-        <div class="circuit">
+        <p class="circuit-desc">Create superposition, then measure &mdash; click Measure to run it!</p>
+        <div class="circuit" id="circuit-1" data-gates="H" data-prob0="0.5">
           <span class="circuit-label">|0&#10217;</span>
           <div class="circuit-wire"></div>
-          <span class="circuit-gate">H</span>
+          <span class="circuit-gate" data-step="1">H</span>
           <div class="circuit-wire"></div>
-          <span class="circuit-measure">Measure</span>
+          <span class="circuit-measure" onclick="runCircuit('circuit-1')">Run</span>
         </div>
-        <p class="circuit-desc" style="color:rgba(0,255,204,0.5);">Result: 50% chance of 0, 50% chance of 1.</p>
+        <div class="circuit-output" id="circuit-1-output">Click Run to measure the qubit</div>
 
         <p class="circuit-desc" style="margin-top:0.6rem;">Sandwich Z between H gates (change of basis):</p>
-        <div class="circuit">
+        <div class="circuit" id="circuit-2" data-gates="H,Z,H" data-prob0="0">
           <span class="circuit-label">|0&#10217;</span>
           <div class="circuit-wire"></div>
-          <span class="circuit-gate">H</span>
+          <span class="circuit-gate" data-step="1">H</span>
           <div class="circuit-wire"></div>
-          <span class="circuit-gate">Z</span>
+          <span class="circuit-gate" data-step="2">Z</span>
           <div class="circuit-wire"></div>
-          <span class="circuit-gate">H</span>
+          <span class="circuit-gate" data-step="3">H</span>
           <div class="circuit-wire"></div>
-          <span class="circuit-measure">Measure</span>
+          <span class="circuit-measure" onclick="runCircuit('circuit-2')">Run</span>
         </div>
-        <p class="circuit-desc" style="color:rgba(0,255,204,0.5);">Equivalent to X (NOT). Always outputs 1.</p>
+        <div class="circuit-output" id="circuit-2-output">Click Run to measure &mdash; equivalent to X (NOT)</div>
       </div>
       <div class="edu-section">
         <h3>What Makes a Quantum Algorithm</h3>
@@ -639,6 +648,34 @@ result = sampler.run([qc]).result()
     </div>
   </div>
 
+  <!-- Interactive circuit runner -->
+  <script>
+    const circuitTallies = {};
+    function runCircuit(id) {
+      const el = document.getElementById(id);
+      const output = document.getElementById(id + '-output');
+      if (!el || !output) return;
+      const prob0 = parseFloat(el.dataset.prob0);
+      // Animate gates sequentially
+      const gates = el.querySelectorAll('.circuit-gate');
+      gates.forEach((g, i) => {
+        setTimeout(() => { g.classList.add('highlight'); }, i * 200);
+        setTimeout(() => { g.classList.remove('highlight'); }, i * 200 + 180);
+      });
+      // Measure after gate animation
+      const delay = gates.length * 200 + 100;
+      setTimeout(() => {
+        const result = Math.random() < prob0 ? 0 : 1;
+        if (!circuitTallies[id]) circuitTallies[id] = { 0: 0, 1: 0 };
+        circuitTallies[id][result]++;
+        const total = circuitTallies[id][0] + circuitTallies[id][1];
+        output.className = 'circuit-output result-' + result;
+        output.innerHTML = 'Measured: <strong>|' + result + '&#10217;</strong> &nbsp; ' +
+          '<span class="circuit-tally">(runs: |0&#10217;=' + circuitTallies[id][0] +
+          ' |1&#10217;=' + circuitTallies[id][1] + ' of ' + total + ')</span>';
+      }, delay);
+    }
+  </script>
   <script type="module">
     import './js/app.js';
     window.addEventListener('load', () => { setTimeout(() => { document.getElementById('loading').classList.add('hidden'); }, 1500); });

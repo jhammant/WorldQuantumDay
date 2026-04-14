@@ -28,10 +28,10 @@ const cameraPoses = {
   'qubit-intro': new THREE.Vector3(0, 0.2, 3),
   playground: new THREE.Vector3(0, 0.4, 3),
   circuits: new THREE.Vector3(0, 0.3, 3.5),
-  race: new THREE.Vector3(0, 0.8, 4),
-  shors: new THREE.Vector3(0, 0.6, 4),
-  optimization: new THREE.Vector3(0, 0.6, 4),
-  qkd: new THREE.Vector3(0, 0.5, 4),
+  race: new THREE.Vector3(0, 0.4, 3.8),
+  shors: new THREE.Vector3(0, 0.35, 3.8),
+  optimization: new THREE.Vector3(0, 0.35, 3.8),
+  qkd: new THREE.Vector3(0, 0.3, 3.8),
   next: new THREE.Vector3(0, 0.2, 3.5)
 };
 
@@ -105,23 +105,23 @@ async function init() {
   scene.add(burstParticles.points);
 
   race = new QuantumRace();
-  race.group.scale.set(0.7, 0.7, 0.7);
-  race.group.position.y = 0.6;
+  race.group.scale.set(0.85, 0.85, 0.85);
+  race.group.position.y = 0.35;
   scene.add(race.group);
 
   shors = new ShorsFactoring();
-  shors.group.scale.set(0.65, 0.65, 0.65);
-  shors.group.position.y = 0.5;
+  shors.group.scale.set(0.8, 0.8, 0.8);
+  shors.group.position.y = 0.3;
   scene.add(shors.group);
 
   optimization = new QuantumOptimization();
-  optimization.group.scale.set(0.6, 0.6, 0.6);
-  optimization.group.position.y = 0.5;
+  optimization.group.scale.set(0.8, 0.8, 0.8);
+  optimization.group.position.y = 0.3;
   scene.add(optimization.group);
 
   qkd = new QuantumQKD();
-  qkd.group.scale.set(0.6, 0.6, 0.6);
-  qkd.group.position.y = 0.4;
+  qkd.group.scale.set(0.75, 0.75, 0.75);
+  qkd.group.position.y = 0.25;
   scene.add(qkd.group);
 
   arMode = new ARMode(renderer, scene, blochSphere.group);
