@@ -105,15 +105,23 @@ async function init() {
   scene.add(burstParticles.points);
 
   race = new QuantumRace();
+  race.group.scale.set(0.7, 0.7, 0.7);
+  race.group.position.y = 0.6;
   scene.add(race.group);
 
   shors = new ShorsFactoring();
+  shors.group.scale.set(0.65, 0.65, 0.65);
+  shors.group.position.y = 0.5;
   scene.add(shors.group);
 
   optimization = new QuantumOptimization();
+  optimization.group.scale.set(0.6, 0.6, 0.6);
+  optimization.group.position.y = 0.5;
   scene.add(optimization.group);
 
   qkd = new QuantumQKD();
+  qkd.group.scale.set(0.6, 0.6, 0.6);
+  qkd.group.position.y = 0.4;
   scene.add(qkd.group);
 
   arMode = new ARMode(renderer, scene, blochSphere.group);
